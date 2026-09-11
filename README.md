@@ -32,7 +32,6 @@ WebSockets:
 }
 ```
 
-
 ## Set Volume
 
 The value is a number between 0 and 24
@@ -45,6 +44,7 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusio
 ```
 
 ## Mute/UnMute
+
 ```
 PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/output/zone1/isMuted
 {
@@ -53,12 +53,49 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusio
 ```
 
 ## Change the Source
+
 ```
 PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/output/zone1/source
 {
   "value": 'source2'
 }
 ```
+
+## Tuner
+
+Tuner controls are available when the current source is AM or FM.
+
+Set the frequency directly. FM frequencies are specified in MHz and AM
+frequencies in kHz.
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/frequency
+{
+  "value": 101.7
+}
+```
+
+Seek to the next or previous station:
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/seek
+{
+  "value": "up"
+}
+```
+
+The value can be `"up"` or `"down"`.
+
+Manual tuning is also available:
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/tune
+{
+  "value": "up"
+}
+```
+
+The value can be `"up"` or `"down"`.
 
 ## Power On/Off
 
@@ -95,4 +132,3 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusio
 }
 
 ```
-

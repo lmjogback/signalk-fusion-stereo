@@ -339,6 +339,73 @@ module.exports = function (app: any) {
     }
   */
 
+  function tunerFrequencyToHz(
+    sourceName: string,
+    frequency: number
+  ): number | undefined {
+    if (!Number.isFinite(frequency) || frequency <= 0) {
+      return undefined
+    }
+
+    switch (sourceName) {
+      case 'AM':
+        return Math.round(frequency * 1000)
+      case 'FM':
+        return Math.round(frequency * 1000000)
+      default:
+        return undefined
+    }
+  }
+
+  function getCurrentTunerSource(prefix: string) {
+    const sourcePath = app.getSelfPath(`${prefix}.output.zone1.source.value`)
+
+    if (typeof sourcePath !== 'string') {
+      return undefined
+    }
+
+    const sourceName = app.getSelfPath(`${sourcePath}.name`)
+
+    if (
+      !sourceName ||
+      typeof sourceName.value !== 'string' ||
+      (sourceName.value !== 'AM' && sourceName.value !== 'FM')
+    ) {
+      return undefined
+    }
+
+    return {
+      sourcePath,
+      sourceName: sourceName.value
+    }
+  }
+
+  function getCurrentTuner(prefix: string) {
+    const source = getCurrentTunerSource(prefix)
+
+    if (!source) {
+      return undefined
+    }
+
+    const frequency = app.getSelfPath(`${source.sourcePath}.tuner.frequency`)
+
+    if (!frequency || typeof frequency.value !== 'number') {
+      return undefined
+    }
+
+    const frequencyHz = tunerFrequencyToHz(source.sourceName, frequency.value)
+
+    if (frequencyHz === undefined) {
+      return undefined
+    }
+
+    return {
+      ...source,
+      frequency: frequency.value,
+      frequencyHz
+    }
+  }
+
   function registerForPuts(prefix: string) {
     const self = 'vessels.self'
     const error: ActionResult = {
@@ -398,6 +465,109 @@ module.exports = function (app: any) {
         }
       )
     })
+
+    app.registerPutHandler(
+      self,
+      prefix + '.frequency',
+      (_context: string, _path: string, value: any, _cb: any) => {
+        if (
+          typeof value !== 'number' ||
+          !Number.isFinite(value) ||
+          value <= 0
+        ) {
+          return {
+            ...error,
+            message: `invalid tuner frequency '${value}'`
+          }
+        }
+
+        const tuner = getCurrentTunerSource(prefix)
+
+        if (!tuner) {
+          return {
+            ...error,
+            message: 'current source is not a supported AM/FM tuner'
+          }
+        }
+
+        const frequency = tunerFrequencyToHz(tuner.sourceName, value)
+
+        if (frequency === undefined) {
+          return {
+            ...error,
+            message: 'current source is not a supported AM/FM tuner'
+          }
+        }
+
+        sendCommand(deviceid, {
+          action: 'setFrequency',
+          device: prefix,
+          frequency
+        })
+
+        return completed
+      }
+    )
+
+    app.registerPutHandler(
+      self,
+      prefix + '.seek',
+      (_context: string, _path: string, value: any, _cb: any) => {
+        if (value !== 'up' && value !== 'down') {
+          return {
+            ...error,
+            message: `invalid seek direction '${value}', expected 'up' or 'down'`
+          }
+        }
+
+        const tuner = getCurrentTuner(prefix)
+
+        if (!tuner) {
+          return {
+            ...error,
+            message: 'current source is not a supported AM/FM tuner'
+          }
+        }
+
+        sendCommand(deviceid, {
+          action: value === 'up' ? 'seekUp' : 'seekDown',
+          device: prefix,
+          frequency: tuner.frequencyHz
+        })
+
+        return completed
+      }
+    )
+
+    app.registerPutHandler(
+      self,
+      prefix + '.tune',
+      (_context: string, _path: string, value: any, _cb: any) => {
+        if (value !== 'up' && value !== 'down') {
+          return {
+            ...error,
+            message: `invalid tune direction '${value}', expected 'up' or 'down'`
+          }
+        }
+
+        const tuner = getCurrentTuner(prefix)
+
+        if (!tuner) {
+          return {
+            ...error,
+            message: 'current source is not a supported AM/FM tuner'
+          }
+        }
+
+        sendCommand(deviceid, {
+          action: value === 'up' ? 'tuneUp' : 'tuneDown',
+          device: prefix,
+          frequency: tuner.frequencyHz
+        })
+
+        return completed
+      }
+    )
 
     app.registerPutHandler(
       self,
@@ -1047,12 +1217,19 @@ module.exports = function (app: any) {
       let currentSource
       let cur_source_id
 
-      if (
-        action == 'next' ||
-        action == 'prev' ||
-        action == 'play' ||
-        action == 'pause'
-      ) {
+      const sourceActions = [
+        'next',
+        'prev',
+        'play',
+        'pause',
+        'seekUp',
+        'seekDown',
+        'tuneUp',
+        'tuneDown',
+        'setFrequency'
+      ]
+
+      if (sourceActions.includes(action)) {
         const sidPath = path + '.output.zone1.source.value'
         cur_source_id = app.getSelfPath(sidPath)
 
