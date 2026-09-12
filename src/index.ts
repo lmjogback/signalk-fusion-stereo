@@ -52,6 +52,7 @@ module.exports = function (app: any) {
   const availableZones: string[] = []
   const availableSources: string[] = []
   const zoneNames = new Map<number, string>()
+  const zoneInstances = new Map<number, string>()
   let currentSource: string
   const isNewServer: boolean =
     satisfies(app.config.version, '>=2.15.0') ||
@@ -680,13 +681,7 @@ module.exports = function (app: any) {
     }
 
     if (plugin_props.useZoneNames) {
-      const zoneName = zoneNames.get(zoneId)
-      if (!zoneName) {
-        return undefined
-      }
-
-      const instance = zoneNameToInstance(zoneName)
-      return instance || undefined
+      return zoneInstances.get(zoneId)
     }
 
     return String(zoneId)
@@ -741,6 +736,13 @@ module.exports = function (app: any) {
 
             if (pv.path.endsWith('name')) {
               zoneNames.set(zoneId, pv.value)
+
+              if (!zoneInstances.has(zoneId)) {
+                const instance = zoneNameToInstance(pv.value)
+                if (instance) {
+                  zoneInstances.set(zoneId, instance)
+                }
+              }
 
               if (availableZones.indexOf(pv.value) === -1) {
                 availableZones.push(pv.value)
