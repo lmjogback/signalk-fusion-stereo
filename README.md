@@ -53,12 +53,19 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusio
 ```
 
 ## Change the Source
+
+The source is global for the stereo. Set it using the source name reported by
+the stereo, for example `FM`, `AM`, `Aux` or `BT`.
+
 ```
-PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/output/zone1/source
+PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/source
 {
-  "value": 'source2'
+  "value": "Aux"
 }
 ```
+
+The legacy per-zone source PUT paths using values such as `source2` are still
+supported for backwards compatibility.
 
 ## Power On/Off
 

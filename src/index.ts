@@ -401,6 +401,40 @@ module.exports = function (app: any) {
 
     app.registerPutHandler(
       self,
+      prefix + '.source',
+      (_context: string, _path: string, value: any, _cb: any) => {
+        if (typeof value !== 'string') {
+          return {
+            ...error,
+            statusCode: 400,
+            message: `invalid source '${value}', expected source name`
+          }
+        }
+
+        const sources = app.getSelfPath(`${prefix}.avsource`) ?? {}
+        const sourceId = Object.keys(sources).find(
+          (id) => sources[id]?.name?.value === value
+        )
+
+        if (!sourceId) {
+          return {
+            ...error,
+            statusCode: 400,
+            message: `unknown source '${value}'`
+          }
+        }
+
+        sendCommand(deviceid, {
+          action: 'setSource',
+          device: prefix,
+          value: sourceId
+        })
+        return completed
+      }
+    )
+
+    app.registerPutHandler(
+      self,
       prefix + '.toggleMute',
       (_context: string, _path: string, _value: any, _cb: any) => {
         const state = app.getSelfPath(`${default_device}.output.zone1.isMuted`)
