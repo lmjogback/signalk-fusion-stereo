@@ -51,6 +51,7 @@ module.exports = function (app: any) {
   let lastBtDevices: any[]
   const availableZones: string[] = []
   const availableSources: string[] = []
+  const zoneNames = new Map<number, string>()
   let currentSource: string
   const isNewServer: boolean =
     satisfies(app.config.version, '>=2.15.0') ||
@@ -155,6 +156,8 @@ module.exports = function (app: any) {
         'ui:order': [
           'autoDiscover',
           'deviceid',
+          'useZoneNames',
+          'zoneMappings',
           'enableAlarms',
           'playSound',
           'alarmInput',
@@ -213,6 +216,33 @@ module.exports = function (app: any) {
             title: 'Stereo N2K Device ID ',
             description,
             default: defaultId
+          },
+          useZoneNames: {
+            type: 'boolean',
+            title: 'Use zone names for paths',
+            description:
+              'Use the Fusion zone name as the Signal K zone instance instead of the numeric Fusion zone id',
+            default: false
+          },
+          zoneMappings: {
+            title: 'Zone Mappings',
+            description: 'Map Fusion zone ids to Signal K zone instances',
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                fusionId: {
+                  title: 'Fusion Zone ID',
+                  description: 'Zero-based Fusion zone id',
+                  type: 'number'
+                },
+                signalkId: {
+                  title: 'Signal K Instance',
+                  description: '(Example: cockpit)',
+                  type: 'string'
+                }
+              }
+            }
           },
           enableAlarms: {
             type: 'boolean',
@@ -629,6 +659,63 @@ module.exports = function (app: any) {
     app.handleMessage(plugin.id, delta)
   }
 
+  function zoneNameToInstance(name: string) {
+    return name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+(.)?/g, (_match, chr) =>
+        chr ? chr.toUpperCase() : ''
+      )
+  }
+
+  function getZoneInstance(zoneId: number) {
+    if (plugin_props.zoneMappings) {
+      const mapping = plugin_props.zoneMappings.find(
+        (mapping: any) => mapping.fusionId === zoneId
+      )
+
+      if (mapping?.signalkId) {
+        return mapping.signalkId
+      }
+    }
+
+    if (plugin_props.useZoneNames) {
+      const zoneName = zoneNames.get(zoneId)
+      if (!zoneName) {
+        return undefined
+      }
+
+      const instance = zoneNameToInstance(zoneName)
+      return instance || undefined
+    }
+
+    return String(zoneId)
+  }
+
+  function sendZoneStatus(zoneId: number, pv: any) {
+    const instance = getZoneInstance(zoneId)
+
+    if (instance === undefined) {
+      return
+    }
+
+    const base = `${default_device}.zones.${instance}`
+
+    if (pv.path.endsWith('.name')) {
+      sendDelta(`${base}.name`, pv.value)
+
+      const volume = app.getSelfPath(
+        `${default_device}.output.zone${zoneId + 1}.volume.master`
+      )
+
+      if (volume?.value !== undefined) {
+        sendDelta(`${base}.volume`, volume.value)
+      }
+    } else if (pv.path.endsWith('.volume.master')) {
+      sendDelta(`${base}.volume`, pv.value)
+    }
+  }
+
   function handleDelta(delta: any) {
     delta.updates.forEach((update: any) => {
       if (!update.values) return
@@ -643,11 +730,21 @@ module.exports = function (app: any) {
         }
 
         if (pv.path.startsWith(`${default_device}.output.zone`)) {
-          if (pv.path.endsWith('name')) {
-            if (availableZones.indexOf(pv.value) === -1) {
-              availableZones.push(pv.value)
+          const match = pv.path.match(/\.output\.zone(\d+)\./)
+
+          if (match) {
+            const zoneId = Number(match[1]) - 1
+
+            if (pv.path.endsWith('name')) {
+              zoneNames.set(zoneId, pv.value)
+
+              if (availableZones.indexOf(pv.value) === -1) {
+                availableZones.push(pv.value)
+              }
+              sendEnabled(plugin_props.availableZones, pv)
             }
-            sendEnabled(plugin_props.availableZones, pv)
+
+            sendZoneStatus(zoneId, pv)
           }
           if (pv.path.endsWith('volume.master')) {
             sendVolume()
