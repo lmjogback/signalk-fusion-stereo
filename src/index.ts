@@ -351,6 +351,22 @@ module.exports = function (app: any) {
       statusCode: 200
     }
 
+    app.registerPutHandler(
+      self,
+      prefix + '.isMuted',
+      (_context: string, _path: string, value: any, _cb: any) => {
+        if (typeof value !== 'boolean') {
+          return {
+            ...error,
+            statusCode: 400,
+            message: 'isMuted must be a boolean'
+          }
+        }
+        set_muted(value)
+        return completed
+      }
+    )
+
     ZONES.forEach((zone) => {
       app.registerPutHandler(
         self,
@@ -377,10 +393,7 @@ module.exports = function (app: any) {
         self,
         prefix + `.output.${zone}.isMuted`,
         (context: string, path: string, value: any, _cb: any) => {
-          sendCommand(deviceid, {
-            action: value === true ? 'mute' : 'unmute',
-            device: prefix
-          })
+          set_muted(value === true)
           return completed
         }
       )
@@ -634,6 +647,13 @@ module.exports = function (app: any) {
       if (!update.values) return
 
       update.values.forEach((pv: any) => {
+        if (
+          pv.path === `${default_device}.output.zone1.isMuted` &&
+          typeof pv.value === 'boolean'
+        ) {
+          sendDelta(`${default_device}.isMuted`, pv.value)
+        }
+
         if (pv.path === `${default_device}.output.zone1.source`) {
           currentSource = pv.value
           sendDelta(
