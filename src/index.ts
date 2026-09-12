@@ -693,6 +693,10 @@ module.exports = function (app: any) {
   }
 
   function sendZoneStatus(zoneId: number, pv: any) {
+    if (!zoneNames.has(zoneId)) {
+      return
+    }
+
     const instance = getZoneInstance(zoneId)
 
     if (instance === undefined) {
