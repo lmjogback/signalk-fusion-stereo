@@ -67,6 +67,42 @@ PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusio
 The legacy per-zone source PUT paths using values such as `source2` are still
 supported for backwards compatibility.
 
+## Tuner
+
+Tuner controls are available when the current source is AM or FM.
+
+Set the frequency directly. FM frequencies are specified in MHz and AM
+frequencies in kHz.
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/frequency
+{
+  "value": 101.7
+}
+```
+
+Seek to the next or previous station:
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/seek
+{
+  "value": "up"
+}
+```
+
+The value can be `"up"` or `"down"`.
+
+Manual tuning is also available:
+
+```
+PUT http://localhost:3000/signalk/v1/api/vessels/self/entertainment/device/fusion1/tune
+{
+  "value": "up"
+}
+```
+
+The value can be `"up"` or `"down"`.
+
 ## Power On/Off
 
 The value should be 'on' or 'off'

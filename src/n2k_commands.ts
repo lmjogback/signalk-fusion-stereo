@@ -24,12 +24,45 @@ import {
   PGN_126720_FusionSetZoneVolume,
   PGN_126720_FusionSetAllVolumes,
   PGN_126720_FusionSetPower,
+  PGN_126720_FusionTunerCommand,
   FusionCommand,
   FusionSiriusCommand,
   FusionMuteCommand,
-  FusionPowerState
+  FusionPowerState,
+  FusionRadioSource,
+  FusionTunerCommand
 } from '@canboat/ts-pgns'
 import util from 'util'
+
+export function sourceNameToFusionRadioSource(
+  sourceName: string | undefined
+): FusionRadioSource | undefined {
+  switch (sourceName) {
+    case 'AM':
+      return FusionRadioSource.Am
+    case 'FM':
+      return FusionRadioSource.Fm
+    default:
+      return undefined
+  }
+}
+
+function tunerActionToCommand(action: string): FusionTunerCommand | undefined {
+  switch (action) {
+    case 'seekUp':
+      return FusionTunerCommand.SeekUp
+    case 'seekDown':
+      return FusionTunerCommand.SeekDown
+    case 'tuneUp':
+      return FusionTunerCommand.TuneUp
+    case 'tuneDown':
+      return FusionTunerCommand.TuneDown
+    case 'setFrequency':
+      return FusionTunerCommand.TuneDirect
+    default:
+      return undefined
+  }
+}
 
 const fusion_commands: {
   [key: string]: string | ((sourceId: number, dst: number) => PGN)
@@ -197,6 +230,36 @@ export function getN2KCommand(
       {
         zone: zoneIdToNum(command_json['zone']),
         volume: command_json['value']
+      },
+      deviceid
+    )
+  } else if (
+    action == 'seekUp' ||
+    action == 'seekDown' ||
+    action == 'tuneUp' ||
+    action == 'tuneDown' ||
+    action == 'setFrequency'
+  ) {
+    const tunerSource = sourceNameToFusionRadioSource(currentSource)
+    const command = tunerActionToCommand(action)
+    const frequency = command_json['frequency']
+
+    if (
+      tunerSource === undefined ||
+      command === undefined ||
+      typeof frequency !== 'number' ||
+      !Number.isFinite(frequency) ||
+      !Number.isInteger(frequency) ||
+      frequency <= 0
+    ) {
+      return undefined
+    }
+
+    n2k_msg = new PGN_126720_FusionTunerCommand(
+      {
+        tunerSource,
+        command,
+        frequency
       },
       deviceid
     )
