@@ -74,7 +74,7 @@ module.exports = function (app: any) {
           discovered = discoverStereo()
           if (discovered) {
             setProviderStatus(
-              `Found a ${discovered.productName} with src ${discovered.src}`
+              `Found a ${discovered.modelId} with src ${discovered.src}`
             )
             deviceid = discovered.src
             clearInterval(discoverIntervsl!)
@@ -191,7 +191,7 @@ module.exports = function (app: any) {
 
       if (discovered) {
         defaultId = discovered.src
-        description = `Found a ${discovered.productName} with src ${discovered.src}`
+        description = `Found a ${discovered.modelId} with src ${discovered.src}`
       }
 
       let defaultAudioPlayer = 'omxplayer'
